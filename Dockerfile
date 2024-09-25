@@ -1,60 +1,31 @@
-# Copyright 2023 Red Hat
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 # Build arguments
 ARG SOURCE_CODE=.
 ARG CI_CONTAINER_VERSION="unknown"
 
+## CPaaS CODE BEGIN ##
+FROM registry.redhat.io/ubi8/ubi-minimal AS stage
+## CPaaS CODE END ##
 
-## Livebuilder CODE BEGIN ##
-FROM registry.access.redhat.com/ubi8/openjdk-17:latest AS build
 
-## Build args to be used at this step
-ARG SOURCE_CODE
-
-USER root
-WORKDIR /build
-ENV MAVEN_OPTS="-Dfile.encoding=UTF8"
-
-RUN sed -i 's:security.provider.12=SunPKCS11:#security.provider.12=SunPKCS11:g' /usr/lib/jvm/java-17-openjdk-*/conf/security/java.security \
-    && sed -i 's:#security.provider.1=SunPKCS11 ${java.home}/lib/security/nss.cfg:security.provider.12=SunPKCS11 ${java.home}/lib/security/nss.cfg:g' /usr/lib/jvm/java-17-openjdk-*/conf/security/java.security
-
-COPY ${SOURCE_CODE}/explainability-core ./explainability-core
-COPY ${SOURCE_CODE}/explainability-connectors ./explainability-connectors
-COPY ${SOURCE_CODE}/explainability-service ./explainability-service
-COPY ${SOURCE_CODE}/explainability-arrow ./explainability-arrow
-COPY ${SOURCE_CODE}/explainability-integrationtests ./explainability-integrationtests
-COPY ${SOURCE_CODE}/pom.xml ./pom.xml
-
-# build and clean up everything we don't need
-RUN mvn -B clean package --file pom.xml -P service-minimal -DskipTests -Dquarkus.profile=odh && rm -Rf explainability-core explainability-connectors explainability-arrow explainability-integrationtests
-
-## Livebuilder CODE END ##
-
+## CPaaS CODE BEGIN ##
+ENV STAGE_DIR="/tmp/artifacts"
+COPY artifacts/trustyai-artifacts.zip /tmp/artifacts/
+# Install packages for the install script and extract archives
+RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y unzip
+RUN unzip /tmp/artifacts/trustyai-artifacts.zip -d /root/
+## CPaaS CODE END ##
 
 ###############################################################################
-FROM registry.access.redhat.com/ubi8/openjdk-17-runtime:latest AS runtime
+FROM registry.redhat.io/ubi8/openjdk-17-runtime:latest as runtime
 ENV LANGUAGE='en_US:en'
 
-## Livebuilder CODE BEGIN ##
-# We make four distinct layers so if there are application changes the library layers can be re-used
-COPY --from=build /build/explainability-service/target/quarkus-app/lib/ /deployments/lib/
-COPY --from=build /build/explainability-service/target/quarkus-app/*.jar /deployments/
-COPY --from=build /build/explainability-service/target/quarkus-app/app/ /deployments/app/
-COPY --from=build /build/explainability-service/target/quarkus-app/quarkus/ /deployments/quarkus/
-## Livebuilder CODE END ##
 
+## CPaaS CODE BEGIN ##
+COPY --from=stage /root/explainability-service/target/quarkus-app/lib/ /deployments/lib/
+COPY --from=stage /root/explainability-service/target/quarkus-app/*.jar /deployments/
+COPY --from=stage /root/explainability-service/target/quarkus-app/app/ /deployments/app/
+COPY --from=stage /root/explainability-service/target/quarkus-app/quarkus/ /deployments/quarkus/
+## CPaaS CODE END ##
 
 ## Build args to be used at this step
 ARG CI_CONTAINER_VERSION
@@ -62,9 +33,11 @@ ARG USER=185
 ENV JAVA_OPTS="-Dquarkus.http.host=0.0.0.0 -Djava.zutil.logging.manager=org.jboss.logmanager.LogManager"
 ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
 
-LABEL com.redhat.component="odh-trustyai-service" \
+LABEL com.redhat.component="odh-trustyai-service-container" \
       name="managed-open-data-hub/odh-trustyai-service-rhel8" \
       version="${CI_CONTAINER_VERSION}" \
+      git.url="${CI_TRUSTYAI_EXPLAINABILITY_UPSTREAM_URL}" \
+      git.commit="${CI_TRUSTYAI_EXPLAINABILITY_UPSTREAM_COMMIT}" \
       summary="odh-trustyai-service" \
       io.openshift.expose-services="" \
       io.k8s.display-name="odh-trustyai-service" \
