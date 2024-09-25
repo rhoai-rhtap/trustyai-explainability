@@ -2,18 +2,9 @@
 ARG SOURCE_CODE=.
 ARG CI_CONTAINER_VERSION="unknown"
 
-## CPaaS CODE BEGIN ##
+
 FROM registry.redhat.io/ubi8/ubi-minimal AS stage
-## CPaaS CODE END ##
 
-
-## CPaaS CODE BEGIN ##
-ENV STAGE_DIR="/tmp/artifacts"
-COPY artifacts/trustyai-artifacts.zip /tmp/artifacts/
-# Install packages for the install script and extract archives
-RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y unzip
-RUN unzip /tmp/artifacts/trustyai-artifacts.zip -d /root/
-## CPaaS CODE END ##
 
 ###############################################################################
 FROM registry.redhat.io/ubi8/openjdk-17-runtime:latest as runtime
