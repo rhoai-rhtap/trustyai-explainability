@@ -16,44 +16,35 @@
 ARG SOURCE_CODE=.
 ARG CI_CONTAINER_VERSION="unknown"
 
+FROM registry.redhat.io/ubi8/ubi-minimal AS stage
 
-## Livebuilder CODE BEGIN ##
-FROM registry.access.redhat.com/ubi8/openjdk-17:latest AS build
+# Define a build argument for the PNC list of built files
+ARG PNC_FILES_JSON
+RUN echo "Files to download: $PNC_FILES_JSON"
 
-## Build args to be used at this step
-ARG SOURCE_CODE
+# Install packages for the install script and extract archives
+RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y unzip jq wget
 
-USER root
-WORKDIR /build
-ENV MAVEN_OPTS="-Dfile.encoding=UTF8"
+ENV STAGE_DIR="/tmp/artifacts"
+WORKDIR $STAGE_DIR
 
-RUN sed -i 's:security.provider.12=SunPKCS11:#security.provider.12=SunPKCS11:g' /usr/lib/jvm/java-17-openjdk-*/conf/security/java.security \
-    && sed -i 's:#security.provider.1=SunPKCS11 ${java.home}/lib/security/nss.cfg:security.provider.12=SunPKCS11 ${java.home}/lib/security/nss.cfg:g' /usr/lib/jvm/java-17-openjdk-*/conf/security/java.security
+# Filter the zip files only and unzip them in /root/
+RUN echo "$PNC_FILES_JSON" | jq -r '.[] | select(test("\\.zip$"))' | \
+    while read url; do wget --no-check-certificate "$url"; done && \
+    for file in *.zip; do unzip -d /root/ "$file"; done
 
-COPY ${SOURCE_CODE}/explainability-core ./explainability-core
-COPY ${SOURCE_CODE}/explainability-connectors ./explainability-connectors
-COPY ${SOURCE_CODE}/explainability-service ./explainability-service
-COPY ${SOURCE_CODE}/explainability-arrow ./explainability-arrow
-COPY ${SOURCE_CODE}/explainability-integrationtests ./explainability-integrationtests
-COPY ${SOURCE_CODE}/pom.xml ./pom.xml
-
-# build and clean up everything we don't need
-RUN mvn -B clean package --file pom.xml -P service-minimal -DskipTests -Dquarkus.profile=odh && rm -Rf explainability-core explainability-connectors explainability-arrow explainability-integrationtests
-
-## Livebuilder CODE END ##
 
 
 ###############################################################################
-FROM registry.access.redhat.com/ubi8/openjdk-17-runtime:latest AS runtime
+FROM registry.redhat.io/ubi8/openjdk-17-runtime:latest as runtime
 ENV LANGUAGE='en_US:en'
 
 ## Livebuilder CODE BEGIN ##
 # We make four distinct layers so if there are application changes the library layers can be re-used
-COPY --from=build /build/explainability-service/target/quarkus-app/lib/ /deployments/lib/
-COPY --from=build /build/explainability-service/target/quarkus-app/*.jar /deployments/
-COPY --from=build /build/explainability-service/target/quarkus-app/app/ /deployments/app/
-COPY --from=build /build/explainability-service/target/quarkus-app/quarkus/ /deployments/quarkus/
-## Livebuilder CODE END ##
+COPY --from=stage /root/explainability-service/target/quarkus-app/lib/ /deployments/lib/
+COPY --from=stage /root/explainability-service/target/quarkus-app/*.jar /deployments/
+COPY --from=stage /root/explainability-service/target/quarkus-app/app/ /deployments/app/
+COPY --from=stage /root/explainability-service/target/quarkus-app/quarkus/ /deployments/quarkus/
 
 
 ## Build args to be used at this step
