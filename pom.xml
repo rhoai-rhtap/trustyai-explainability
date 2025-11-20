@@ -57,7 +57,7 @@
         <version.shade.plugin>3.4.0</version.shade.plugin> <!-- minimum required by JUnit 5 -->
 
         <kogito.formatter.version>${version.org.kie.kogito}</kogito.formatter.version>
-        <formatter.plugin.version>2.13.0</formatter.plugin.version>
+        <formatter.plugin.version>2.29.0</formatter.plugin.version>
         <impsort.plugin.version>1.9.0</impsort.plugin.version>
 
         <version.io.netty>4.1.100.Final</version.io.netty>
