@@ -54,7 +54,7 @@
         <version.org.kie.kogito>1.30.0.Final</version.org.kie.kogito>
 
         <version.surefire.plugin>3.2.5</version.surefire.plugin> <!-- minimum required by JUnit 5 -->
-        <version.shade.plugin>3.4.0</version.shade.plugin> <!-- minimum required by JUnit 5 -->
+        <version.shade.plugin>3.6.2</version.shade.plugin> <!-- minimum required by JUnit 5 -->
 
         <kogito.formatter.version>${version.org.kie.kogito}</kogito.formatter.version>
         <formatter.plugin.version>2.13.0</formatter.plugin.version>
