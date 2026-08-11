@@ -19,7 +19,7 @@
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <quarkus.platform.bom-group-id>io.quarkus</quarkus.platform.bom-group-id>
         <quarkus.platform.version>3.8.5</quarkus.platform.version>
-        <apache.commons.collections.version>4.4</apache.commons.collections.version>
+        <apache.commons.collections.version>4.6.0</apache.commons.collections.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.2.5</surefire-plugin.version>
     </properties>
